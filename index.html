@@ -1,358 +1,286 @@
-import React, { useState, useEffect } from 'react';
-import { Radar, Target, Box, Database, Lock, Unlock, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project: Ghost Tracker</title>
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for a more techy feel */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-900">
+    <div id="root"></div>
 
-const App = () => {
-  const [gameState, setGameState] = useState('briefing'); // briefing, radar, cargo, victory
-  const [pings, setPings] = useState([]);
-  const [radarCount, setRadarCount] = useState(5);
-  const [droneA, setDroneA] = useState({ m: 0, b: 0 });
-  const [droneB, setDroneB] = useState({ m: 0, b: 0 });
-  const [interceptTime, setInterceptTime] = useState(0);
-  const [interceptGuess, setInterceptGuess] = useState({ time: '', dist: '' });
-  const [cargoGuess, setCargoGuess] = useState({ a: '', b: '' });
-  const [feedback, setFeedback] = useState(null);
-  const [cargoSystem, setCargoSystem] = useState([]);
-
-  const initGame = () => {
-    let m1, b1, m2, b2, xInt;
-    
-    // Phase 1 Logic: 2x2 Linear System
-    let valid = false;
-    while (!valid) {
-      m1 = Math.floor(Math.random() * 10) + 5; 
-      b1 = Math.floor(Math.random() * 100) + 150; 
-      const diff = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 4) + 3);
-      m2 = m1 + diff;
-      const targetX = Math.floor(Math.random() * 40) + 15;
-      b2 = b1 + targetX * (m1 - m2);
-      xInt = (b2 - b1) / (m1 - m2);
-      if (xInt > 5) valid = true;
-    }
-    
-    setDroneA({ m: m1, b: b1 });
-    setDroneB({ m: m2, b: b2 });
-    setInterceptTime(xInt);
-    
-    // Phase 2 Logic: 2x2 Weighted System
-    const weightA = Math.floor(Math.random() * 10) + 5;  // 5-14kg
-    const weightB = Math.floor(Math.random() * 15) + 15; // 15-29kg
-    
-    setCargoSystem([
-      { a: 3, b: 2, total: (3 * weightA + 2 * weightB) },
-      { a: 5, b: 4, total: (5 * weightA + 4 * weightB) },
-      { actual: { a: weightA, b: weightB } }
-    ]);
-
-    setPings([]);
-    setRadarCount(5);
-    setGameState('radar');
-    setFeedback(null);
-    setInterceptGuess({ time: '', dist: '' });
-    setCargoGuess({ a: '', b: '' });
-  };
-
-  const pingRadar = () => {
-    if (radarCount <= 0) return;
-    
-    let nextTime = pings.length === 0 
-      ? Math.floor(Math.random() * 3) + 1 
-      : pings[pings.length - 1].time + Math.floor(Math.random() * 6) + 4;
-    
-    if (Math.abs(nextTime - interceptTime) < 0.1) {
-      nextTime += 1;
-    }
-    
-    const distA = droneA.m * nextTime + droneA.b;
-    const distB = droneB.m * nextTime + droneB.b;
-    
-    setPings([...pings, { time: nextTime, distA, distB }]);
-    setRadarCount(radarCount - 1);
-  };
-
-  const verifyIntercept = () => {
-    const exactX = interceptTime;
-    const exactY = droneA.m * exactX + droneA.b;
-    const userX = parseFloat(interceptGuess.time);
-    const userY = parseFloat(interceptGuess.dist);
-
-    if (Math.abs(userX - exactX) < 0.01 && Math.abs(userY - exactY) < 0.01) {
-      setFeedback({ type: 'success', msg: 'Coordinate Match! Intercept confirmed. Unlocking Cargo Manifest...' });
-      setTimeout(() => {
-        setGameState('cargo');
-        setFeedback(null);
-      }, 1500);
-    } else {
-      setFeedback({ type: 'error', msg: 'Intercept coordinates rejected. Flight paths do not intersect here.' });
-    }
-  };
-
-  const verifyCargo = () => {
-    const { a, b } = cargoSystem[2].actual;
-    if (parseInt(cargoGuess.a) === a && parseInt(cargoGuess.b) === b) {
-      setGameState('victory');
-    } else {
-      setFeedback({ type: 'error', msg: 'Security code rejected. Crate weights are incorrect.' });
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        
-        <header className="flex items-center justify-between mb-8 border-b border-slate-700 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-500/20">
-              <Radar size={28} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">PROJECT: GHOST TRACKER</h1>
-              <p className="text-slate-400 text-xs uppercase tracking-widest">Forensic Logistics Division</p>
-            </div>
-          </div>
-          <button 
-            onClick={initGame}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-md transition-colors text-sm border border-slate-600"
-          >
-            <RefreshCw size={16} /> Reset Mission
-          </button>
-        </header>
-
-        <main className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden">
-          
-          {gameState === 'briefing' && (
-            <div className="p-8 space-y-6 text-center">
-              <div className="space-y-4 max-w-2xl mx-auto">
-                <h2 className="text-3xl font-bold text-blue-400 uppercase tracking-tighter">Mission Briefing</h2>
-                <p className="text-slate-300 leading-relaxed text-lg">
-                  Two target drones are on a collision course for a mid-air swap. 
-                </p>
-                <p className="text-slate-400">
-                  You have 5 radar pings to track their position. Deducing their flight equations is the only way to predict the exact intercept point.
-                </p>
-              </div>
-              
-              <div className="grid md:grid-cols-2 gap-4 text-left max-w-3xl mx-auto">
-                <div className="bg-slate-900/50 p-5 rounded-lg border border-slate-700">
-                  <h3 className="font-bold mb-2 flex items-center gap-2 text-red-400 uppercase text-xs tracking-widest"><Target size={16} /> Phase 1: Intercept</h3>
-                  <p className="text-sm text-slate-400 leading-snug">Find where the paths (y = mx + b) cross.</p>
-                </div>
-                <div className="bg-slate-900/50 p-5 rounded-lg border border-slate-700">
-                  <h3 className="font-bold mb-2 flex items-center gap-2 text-yellow-400 uppercase text-xs tracking-widest"><Box size={16} /> Phase 2: Cargo</h3>
-                  <p className="text-sm text-slate-400 leading-snug">Solve the shipment weight system to secure the crates.</p>
-                </div>
-              </div>
-
-              <button 
-                onClick={initGame}
-                className="w-full max-w-md mx-auto bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-lg transition-all transform hover:scale-[1.01] active:scale-95 shadow-xl shadow-blue-600/20 uppercase tracking-widest"
-              >
-                START TRACKING
-              </button>
-            </div>
-          )}
-
-          {gameState === 'radar' && (
-            <div className="p-6 space-y-6">
-              <div className="flex flex-col lg:flex-row gap-6">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold flex items-center gap-2 text-blue-400 uppercase tracking-tighter">
-                      <Database size={20} /> Radar Stream
-                    </h2>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${radarCount > 0 ? 'bg-green-900/20 text-green-400 border-green-800' : 'bg-red-900/20 text-red-400 border-red-800'}`}>
-                      Pings Left: {radarCount}
-                    </span>
-                  </div>
-
-                  <button 
-                    disabled={radarCount === 0}
-                    onClick={pingRadar}
-                    className={`w-full flex flex-col items-center justify-center gap-1 py-8 rounded-lg font-black transition-all group
-                      ${radarCount > 0 
-                        ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20' 
-                        : 'bg-slate-700 cursor-not-allowed text-slate-500'}`}
-                  >
-                    <Radar className={radarCount > 0 ? 'animate-pulse' : ''} size={32} />
-                    <span className="text-xl">PING SENSORS</span>
-                  </button>
-
-                  <div className="overflow-x-auto rounded-lg border border-slate-700 bg-slate-900/30">
-                    <table className="w-full text-left text-sm border-collapse">
-                      <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-widest">
-                        <tr>
-                          <th className="px-4 py-3 border-b border-slate-700">Time (x)</th>
-                          <th className="px-4 py-3 border-b border-slate-700 text-blue-400">Drone Alpha (y)</th>
-                          <th className="px-4 py-3 border-b border-slate-700 text-emerald-400">Drone Beta (y)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800 font-mono">
-                        {pings.length === 0 ? (
-                          <tr><td colSpan="3" className="px-4 py-12 text-center text-slate-500 italic font-sans">No signal. Initiate ping.</td></tr>
-                        ) : (
-                          pings.map((p, i) => (
-                            <tr key={i} className="bg-slate-800/20 hover:bg-slate-700/30 transition-colors">
-                              <td className="px-4 py-3 text-slate-300">{p.time}s</td>
-                              <td className="px-4 py-3 text-blue-200">{p.distA.toFixed(2)}m</td>
-                              <td className="px-4 py-3 text-emerald-200">{p.distB.toFixed(2)}m</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="w-full lg:w-80 bg-slate-900 p-6 rounded-xl border border-slate-700 space-y-4 shadow-xl">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase flex items-center gap-2">
-                    <Target size={16} className="text-red-500" /> Data Analysis
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs text-slate-500 block mb-1 uppercase font-bold tracking-tighter">Intercept Time</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={interceptGuess.time}
-                        onChange={(e) => setInterceptGuess({...interceptGuess, time: e.target.value})}
-                        className="w-full bg-slate-800 border border-slate-600 rounded p-3 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-lg"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-500 block mb-1 uppercase font-bold tracking-tighter">Intercept Distance</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={interceptGuess.dist}
-                        onChange={(e) => setInterceptGuess({...interceptGuess, dist: e.target.value})}
-                        className="w-full bg-slate-800 border border-slate-600 rounded p-3 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-lg"
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={verifyIntercept}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded font-bold transition-all shadow-lg active:scale-95 uppercase text-sm tracking-widest mt-2"
-                  >
-                    CONFIRM INTERCEPT
-                  </button>
-
-                  {feedback && (
-                    <div className={`p-4 rounded-md text-sm flex gap-3 ${feedback.type === 'success' ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800'}`}>
-                      {feedback.type === 'success' ? <CheckCircle2 size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
-                      <span>{feedback.msg}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {gameState === 'cargo' && (
-            <div className="p-8 space-y-6">
-              <div className="flex items-center gap-4 bg-emerald-900/20 p-5 rounded-lg border border-emerald-800/50">
-                <div className="bg-emerald-600 p-2 rounded">
-                  <Unlock size={24} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-emerald-400 uppercase">Drones Grounded!</h2>
-                  <p className="text-sm text-slate-300">Identify the weight of Type A and Type B crates to override the security lock.</p>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8 items-start">
-                <div className="space-y-4">
-                  <h3 className="font-bold text-slate-400 uppercase text-xs tracking-widest flex items-center gap-2">
-                    <Database size={16} /> Recovered Manifest
-                  </h3>
-                  <div className="bg-slate-900 p-8 rounded-xl space-y-8 font-mono text-2xl border border-slate-700 shadow-inner">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-                      <span className="text-blue-400">3A + 2B =</span>
-                      <span className="text-white font-bold">{cargoSystem[0].total} <span className="text-xs text-slate-500 font-sans">kg</span></span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-emerald-400">5A + 4B =</span>
-                      <span className="text-white font-bold">{cargoSystem[1].total} <span className="text-xs text-slate-500 font-sans">kg</span></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 space-y-6 shadow-2xl">
-                  <h3 className="font-bold text-slate-400 uppercase text-xs tracking-widest flex items-center gap-2">
-                    <Lock size={16} className="text-blue-500" /> Security Override
-                  </h3>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-xs text-slate-500 block uppercase font-bold mb-2">Crate A (kg)</label>
-                      <input 
-                        type="number" 
-                        value={cargoGuess.a}
-                        onChange={(e) => setCargoGuess({...cargoGuess, a: e.target.value})}
-                        className="w-full bg-slate-800 border border-slate-600 rounded p-5 text-center text-2xl font-bold focus:border-blue-500 outline-none"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-500 block uppercase font-bold mb-2">Crate B (kg)</label>
-                      <input 
-                        type="number" 
-                        value={cargoGuess.b}
-                        onChange={(e) => setCargoGuess({...cargoGuess, b: e.target.value})}
-                        className="w-full bg-slate-800 border border-slate-600 rounded p-5 text-center text-2xl font-bold focus:border-emerald-500 outline-none"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  <button 
-                    onClick={verifyCargo}
-                    className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-lg font-black text-xl transition-transform active:scale-95 shadow-xl shadow-blue-900/40 uppercase tracking-widest"
-                  >
-                    AUTHORIZE OVERRIDE
-                  </button>
-                  {feedback && (
-                    <div className="p-4 bg-red-900/30 text-red-400 border border-red-800 rounded-md text-sm flex gap-2">
-                      <AlertCircle size={18} /> {feedback.msg}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {gameState === 'victory' && (
-            <div className="p-16 text-center space-y-6 bg-slate-900">
-              <div className="inline-block p-6 bg-green-500/20 rounded-full mb-4 animate-bounce">
-                <CheckCircle2 size={80} className="text-green-500" />
-              </div>
-              <h2 className="text-5xl font-black text-white tracking-tighter uppercase">Mission Success</h2>
-              <p className="text-slate-400 max-w-lg mx-auto text-lg leading-relaxed">
-                Logistics network secured. Both drones were intercepted and all cargo was identified with 100% mathematical accuracy.
-              </p>
-              <div className="pt-8">
-                <button 
-                  onClick={initGame}
-                  className="bg-white text-slate-900 font-black py-4 px-16 rounded-full hover:bg-blue-50 transition-all uppercase tracking-widest text-sm shadow-xl"
+    <script type="text/babel">
+        // Helper to handle icons without external lucide-react dependency issues in iframes
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const icons = {
+                radar: <path d="M19.07 4.93A10 10 0 0 0 2 13a10 10 0 0 0 17.07 7.07M12 13c0-1.1.9-2 2-2M15.54 8.46a5 5 0 0 0-7.08 0" />,
+                target: (
+                    <>
+                        <circle cx="12" cy="12" r="10" />
+                        <circle cx="12" cy="12" r="6" />
+                        <circle cx="12" cy="12" r="2" />
+                    </>
+                ),
+                box: (
+                    <>
+                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                        <path d="m3.3 7 8.7 5 8.7-5" />
+                        <path d="M12 22V12" />
+                    </>
+                ),
+                database: (
+                    <>
+                        <ellipse cx="12" cy="5" rx="9" ry="3" />
+                        <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+                        <path d="M3 12A9 3 0 0 0 21 12" />
+                    </>
+                ),
+                lock: (
+                    <>
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </>
+                ),
+                unlock: (
+                    <>
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                    </>
+                ),
+                alert: (
+                    <>
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" x2="12" y1="8" y2="12" />
+                        <line x1="12" x2="12.01" y1="16" y2="16" />
+                    </>
+                ),
+                check: <polyline points="20 6 9 17 4 12" />,
+                refresh: (
+                    <>
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                        <path d="M21 3v5h-5" />
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                        <path d="M3 21v-5h5" />
+                    </>
+                )
+            };
+            return (
+                <svg 
+                    width={size} 
+                    height={size} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    className={className}
                 >
-                  New Mission
-                </button>
-              </div>
-            </div>
-          )}
-        </main>
+                    {icons[name]}
+                </svg>
+            );
+        };
 
-        <footer className="mt-12 text-center text-slate-600 text-xs flex flex-col items-center gap-2">
-          <p className="tracking-widest font-bold">ALGEBRA II // LOGISTICS FORENSICS MODULE</p>
-          <div className="flex gap-6 opacity-40">
-            <span>2X2 LINEAR TRACKING</span>
-            <span>2X2 WEIGHTED MANIFEST</span>
-          </div>
-        </footer>
+        const App = () => {
+            const [gameState, setGameState] = React.useState('briefing');
+            const [pings, setPings] = React.useState([]);
+            const [radarCount, setRadarCount] = React.useState(5);
+            const [droneA, setDroneA] = React.useState({ m: 0, b: 0 });
+            const [droneB, setDroneB] = React.useState({ m: 0, b: 0 });
+            const [interceptTime, setInterceptTime] = React.useState(0);
+            const [interceptGuess, setInterceptGuess] = React.useState({ time: '', dist: '' });
+            const [cargoGuess, setCargoGuess] = React.useState({ a: '', b: '' });
+            const [feedback, setFeedback] = React.useState(null);
+            const [cargoSystem, setCargoSystem] = React.useState([]);
 
-      </div>
-    </div>
-  );
-};
+            const initGame = () => {
+                let m1, b1, m2, b2, xInt;
+                let valid = false;
+                while (!valid) {
+                    m1 = Math.floor(Math.random() * 10) + 5; 
+                    b1 = Math.floor(Math.random() * 100) + 150; 
+                    const diff = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 4) + 3);
+                    m2 = m1 + diff;
+                    const targetX = Math.floor(Math.random() * 40) + 15;
+                    b2 = b1 + targetX * (m1 - m2);
+                    xInt = (b2 - b1) / (m1 - m2);
+                    if (xInt > 5) valid = true;
+                }
+                
+                setDroneA({ m: m1, b: b1 });
+                setDroneB({ m: m2, b: b2 });
+                setInterceptTime(xInt);
+                
+                const weightA = Math.floor(Math.random() * 10) + 5;
+                const weightB = Math.floor(Math.random() * 15) + 15;
+                
+                setCargoSystem([
+                    { a: 3, b: 2, total: (3 * weightA + 2 * weightB) },
+                    { a: 5, b: 4, total: (5 * weightA + 4 * weightB) },
+                    { actual: { a: weightA, b: weightB } }
+                ]);
 
-export default App;
+                setPings([]);
+                setRadarCount(5);
+                setGameState('radar');
+                setFeedback(null);
+                setInterceptGuess({ time: '', dist: '' });
+                setCargoGuess({ a: '', b: '' });
+            };
+
+            const pingRadar = () => {
+                if (radarCount <= 0) return;
+                let nextTime = pings.length === 0 
+                    ? Math.floor(Math.random() * 3) + 1 
+                    : pings[pings.length - 1].time + Math.floor(Math.random() * 6) + 4;
+                if (Math.abs(nextTime - interceptTime) < 0.1) nextTime += 1;
+                const distA = droneA.m * nextTime + droneA.b;
+                const distB = droneB.m * nextTime + droneB.b;
+                setPings([...pings, { time: nextTime, distA, distB }]);
+                setRadarCount(radarCount - 1);
+            };
+
+            const verifyIntercept = () => {
+                const exactX = interceptTime;
+                const exactY = droneA.m * exactX + droneA.b;
+                const userX = parseFloat(interceptGuess.time);
+                const userY = parseFloat(interceptGuess.dist);
+                if (Math.abs(userX - exactX) < 0.05 && Math.abs(userY - exactY) < 0.05) {
+                    setFeedback({ type: 'success', msg: 'Coordinate Match! Intercept confirmed. Unlocking Manifest...' });
+                    setTimeout(() => { setGameState('cargo'); setFeedback(null); }, 1500);
+                } else {
+                    setFeedback({ type: 'error', msg: 'Intercept coordinates rejected. The paths do not cross there.' });
+                }
+            };
+
+            const verifyCargo = () => {
+                const { a, b } = cargoSystem[2].actual;
+                if (parseInt(cargoGuess.a) === a && parseInt(cargoGuess.b) === b) {
+                    setGameState('victory');
+                } else {
+                    setFeedback({ type: 'error', msg: 'Security code rejected. Weights are incorrect.' });
+                }
+            };
+
+            return (
+                <div className="min-h-screen text-slate-100 p-4 md:p-8">
+                    <div className="max-w-4xl mx-auto">
+                        <header className="flex items-center justify-between mb-8 border-b border-slate-700 pb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-blue-600 p-2 rounded-lg shadow-lg">
+                                    <Icon name="radar" size={28} className="text-white" />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold tracking-tight">PROJECT: GHOST TRACKER</h1>
+                                    <p className="text-slate-400 text-xs uppercase tracking-widest">Forensic Logistics Division</p>
+                                </div>
+                            </div>
+                            <button onClick={initGame} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-md transition-colors text-sm border border-slate-600">
+                                <Icon name="refresh" size={16} /> Reset
+                            </button>
+                        </header>
+
+                        <main className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden min-h-[500px]">
+                            {gameState === 'briefing' && (
+                                <div className="p-8 space-y-6 text-center">
+                                    <h2 className="text-3xl font-bold text-blue-400 uppercase tracking-tighter">Mission Briefing</h2>
+                                    <p className="text-slate-300 text-lg max-w-2xl mx-auto leading-relaxed">Two target drones are on a collision course for a mid-air swap. You have 5 radar pings to track their position and find the intersection point.</p>
+                                    <button onClick={initGame} className="w-full max-w-md mx-auto bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-lg shadow-xl uppercase tracking-widest transition-transform active:scale-95">START TRACKING</button>
+                                </div>
+                            )}
+
+                            {gameState === 'radar' && (
+                                <div className="p-6 space-y-6">
+                                    <div className="flex flex-col lg:flex-row gap-6">
+                                        <div className="flex-1 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h2 className="text-lg font-semibold flex items-center gap-2 text-blue-400 uppercase"><Icon name="database" /> Radar Stream</h2>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${radarCount > 0 ? 'bg-green-900/20 text-green-400 border-green-800' : 'bg-red-900/20 text-red-400 border-red-800'}`}>Pings Left: {radarCount}</span>
+                                            </div>
+                                            <button disabled={radarCount === 0} onClick={pingRadar} className={`w-full flex flex-col items-center justify-center gap-1 py-8 rounded-lg font-black transition-all ${radarCount > 0 ? 'bg-blue-600 hover:bg-blue-500 shadow-lg' : 'bg-slate-700 cursor-not-allowed text-slate-500'}`}>
+                                                <Icon name="radar" size={32} className={radarCount > 0 ? 'animate-pulse' : ''} />
+                                                <span className="text-xl">PING SENSORS</span>
+                                            </button>
+                                            <div className="overflow-x-auto rounded-lg border border-slate-700 bg-slate-900/30">
+                                                <table className="w-full text-left text-sm border-collapse">
+                                                    <thead className="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                                                        <tr><th className="px-4 py-3">Time (x)</th><th className="px-4 py-3 text-blue-400">Alpha (y)</th><th className="px-4 py-3 text-emerald-400">Beta (y)</th></tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-800 font-mono">
+                                                        {pings.length === 0 ? <tr><td colSpan="3" className="px-4 py-12 text-center text-slate-500 italic font-sans">No signal. Initiate ping.</td></tr> : pings.map((p, i) => (
+                                                            <tr key={i} className="bg-slate-800/20"><td className="px-4 py-3 text-slate-300">{p.time}s</td><td className="px-4 py-3 text-blue-200">{p.distA.toFixed(2)}m</td><td className="px-4 py-3 text-emerald-200">{p.distB.toFixed(2)}m</td></tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div className="w-full lg:w-80 bg-slate-900 p-6 rounded-xl border border-slate-700 space-y-4 shadow-xl">
+                                            <h3 className="text-sm font-bold text-slate-400 uppercase flex items-center gap-2"><Icon name="target" className="text-red-500" /> Analysis</h3>
+                                            <div className="space-y-4">
+                                                <div><label className="text-xs text-slate-500 block mb-1 uppercase font-bold">Intercept Time</label><input type="number" step="0.01" value={interceptGuess.time} onChange={(e) => setInterceptGuess({...interceptGuess, time: e.target.value})} className="w-full bg-slate-800 border border-slate-600 rounded p-3 font-mono text-lg outline-none focus:ring-1 focus:ring-blue-500" placeholder="0.00" /></div>
+                                                <div><label className="text-xs text-slate-500 block mb-1 uppercase font-bold">Intercept Distance</label><input type="number" step="0.01" value={interceptGuess.dist} onChange={(e) => setInterceptGuess({...interceptGuess, dist: e.target.value})} className="w-full bg-slate-800 border border-slate-600 rounded p-3 font-mono text-lg outline-none focus:ring-1 focus:ring-blue-500" placeholder="0.00" /></div>
+                                            </div>
+                                            <button onClick={verifyIntercept} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded font-bold uppercase text-sm tracking-widest active:scale-95">CONFIRM INTERCEPT</button>
+                                            {feedback && <div className={`p-4 rounded-md text-sm flex gap-3 ${feedback.type === 'success' ? 'bg-green-900/30 text-green-400 border-green-800' : 'bg-red-900/30 text-red-400 border-red-800'}`}><Icon name={feedback.type === 'success' ? 'check' : 'alert'} /> {feedback.msg}</div>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {gameState === 'cargo' && (
+                                <div className="p-8 space-y-6">
+                                    <div className="flex items-center gap-4 bg-emerald-900/20 p-5 rounded-lg border border-emerald-800/50">
+                                        <div className="bg-emerald-600 p-2 rounded"><Icon name="unlock" className="text-white" /></div>
+                                        <div><h2 className="text-xl font-bold text-emerald-400 uppercase">Drones Grounded!</h2><p className="text-sm text-slate-300">Solve the weight manifest for Crate A and B to override the security lock.</p></div>
+                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-8">
+                                        <div className="bg-slate-900 p-8 rounded-xl font-mono text-2xl border border-slate-700 space-y-8">
+                                            <div className="flex justify-between border-b border-slate-800 pb-4"><span className="text-blue-400">3A + 2B =</span><span className="text-white">{cargoSystem[0].total} kg</span></div>
+                                            <div className="flex justify-between"><span className="text-emerald-400">5A + 4B =</span><span className="text-white">{cargoSystem[1].total} kg</span></div>
+                                        </div>
+                                        <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 space-y-6 shadow-2xl">
+                                            <h3 className="text-sm font-bold text-slate-400 uppercase flex items-center gap-2"><Icon name="lock" className="text-blue-500" /> Security Override</h3>
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div><label className="text-xs text-slate-500 uppercase font-bold block mb-2">Crate A (kg)</label><input type="number" value={cargoGuess.a} onChange={(e) => setCargoGuess({...cargoGuess, a: e.target.value})} className="w-full bg-slate-800 border border-slate-600 rounded p-5 text-center text-2xl font-bold outline-none focus:border-blue-500" placeholder="0" /></div>
+                                                <div><label className="text-xs text-slate-500 uppercase font-bold block mb-2">Crate B (kg)</label><input type="number" value={cargoGuess.b} onChange={(e) => setCargoGuess({...cargoGuess, b: e.target.value})} className="w-full bg-slate-800 border border-slate-600 rounded p-5 text-center text-2xl font-bold outline-none focus:border-emerald-500" placeholder="0" /></div>
+                                            </div>
+                                            <button onClick={verifyCargo} className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-lg font-black text-xl uppercase tracking-widest transition-transform active:scale-95">AUTHORIZE OVERRIDE</button>
+                                            {feedback && <div className="p-4 bg-red-900/30 text-red-400 border border-red-800 rounded-md text-sm flex gap-2"><Icon name="alert" /> {feedback.msg}</div>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {gameState === 'victory' && (
+                                <div className="p-16 text-center space-y-6">
+                                    <div className="inline-block p-6 bg-green-500/20 rounded-full animate-bounce"><Icon name="check" size={80} className="text-green-500" /></div>
+                                    <h2 className="text-5xl font-black text-white tracking-tighter uppercase">Mission Success</h2>
+                                    <p className="text-slate-400 max-w-lg mx-auto text-lg">Logistics network secured. Your algebraic modeling was 100% accurate.</p>
+                                    <button onClick={initGame} className="bg-white text-slate-900 font-black py-4 px-16 rounded-full uppercase tracking-widest text-sm shadow-xl active:scale-95">New Mission</button>
+                                </div>
+                            )}
+                        </main>
+                        <footer className="mt-8 text-center text-slate-600 text-xs tracking-widest font-bold">ALGEBRA II // LOGISTICS FORENSICS MODULE</footer>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
